@@ -586,23 +586,17 @@ function registerWithUsername() {
     return showNotification('Tên đăng nhập chỉ được chứa chữ cái, số, dấu gạch dưới, dài 3-20 ký tự', 'error');
   }
 
-  // Step 1: Create auth user
-  auth.createUserWithEmailAndPassword(email, password)
-    .then((userCredential) => {
-      const user = userCredential.user;
-      console.log('Created auth user:', user.uid);
+  // Step 1: Check username uniqueness
+  db.ref('users').orderByChild('username').equalTo(username).once('value').then((snapshot) => {
+    if (snapshot.exists()) {
+      return showNotification('Tên đăng nhập đã tồn tại', 'error');
+    }
 
-      // Step 2: Check username uniqueness
-      return db.ref('users').orderByChild('username').equalTo(username).once('value').then((snapshot) => {
-        if (snapshot.exists()) {
-          // Username exists - delete the newly created auth user
-          return user.delete().then(() => {
-            throw new Error('Tên đăng nhập đã tồn tại');
-          }).catch((deleteError) => {
-            console.error('Error deleting user:', deleteError);
-            throw new Error('Tên đăng nhập đã tồn tại và không thể xóa tài khoản tạm thời');
-          });
-        }
+    // Step 2: Create auth user
+    auth.createUserWithEmailAndPassword(email, password)
+      .then((userCredential) => {
+        const user = userCredential.user;
+        console.log('Created auth user:', user.uid);
 
         // Step 3: Save user profile
         return db.ref(`users/${user.uid}`).set({
@@ -611,36 +605,42 @@ function registerWithUsername() {
           email: email,
           isAdmin: false,
           createdAt: Date.now()
+        }).then(() => {
+          // Step 4: Wait briefly to ensure profile is saved
+          return new Promise(resolve => setTimeout(resolve, 1000));
         });
+      })
+      .then(() => {
+        showNotification('Đăng ký thành công! Bạn có thể đăng nhập ngay.', 'success');
+        showLoginForm();
+        // Clear form
+        document.getElementById('registerUsername').value = '';
+        document.getElementById('registerPassword').value = '';
+        document.getElementById('registerDisplayName').value = '';
+        document.getElementById('registerEmail').value = '';
+      })
+      .catch((error) => {
+        console.error('Register error:', error);
+        let message = 'Lỗi đăng ký';
+        switch (error.code) {
+          case 'auth/email-already-in-use':
+            message = 'Email đã được sử dụng';
+            break;
+          case 'auth/invalid-email':
+            message = 'Email không hợp lệ';
+            break;
+          case 'auth/weak-password':
+            message = 'Mật khẩu quá yếu';
+            break;
+          default:
+            message = error.message;
+        }
+        showNotification(message, 'error');
       });
-    })
-    .then(() => {
-      showNotification('Đăng ký thành công! Bạn có thể đăng nhập ngay.', 'success');
-      showLoginForm();
-      // Clear form
-      document.getElementById('registerUsername').value = '';
-      document.getElementById('registerPassword').value = '';
-      document.getElementById('registerDisplayName').value = '';
-      document.getElementById('registerEmail').value = '';
-    })
-    .catch((error) => {
-      console.error('Register error:', error);
-      let message = 'Lỗi đăng ký';
-      switch (error.code) {
-        case 'auth/email-already-in-use':
-          message = 'Email đã được sử dụng';
-          break;
-        case 'auth/invalid-email':
-          message = 'Email không hợp lệ';
-          break;
-        case 'auth/weak-password':
-          message = 'Mật khẩu quá yếu';
-          break;
-        default:
-          message = error.message;
-      }
-      showNotification(message, 'error');
-    });
+  }).catch((error) => {
+    console.error('Username lookup error:', error);
+    showNotification('Lỗi kiểm tra tên đăng nhập: ' + error.message, 'error');
+  });
 }
 
 function resetPassword() {
@@ -733,7 +733,7 @@ function parseBBCode(text) {
     });
 }
 
-// Post topic - Updated to use displayName from database
+// Post topic
 document.getElementById("topicForm").addEventListener("submit", function(e) {
   e.preventDefault();
   if (!currentUser) return showNotification("Bạn cần đăng nhập!", 'error');
@@ -795,7 +795,7 @@ document.getElementById("topicForm").addEventListener("submit", function(e) {
   });
 });
 
-// Post comment - Updated to use displayName from database
+// Post comment
 function postComment(id) {
   let inp = document.getElementById("cm-input-" + id);
   let text = inp.value.trim();
