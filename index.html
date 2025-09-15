@@ -216,10 +216,7 @@
       <i class="fas fa-comments text-indigo-400"></i>
       Hen43 Forum
     </h1>
-    <div class="text-sm text-gray-400">
-      <i class="fas fa-users mr-1"></i>
-      <span id="onlineCount">--</span> người online
-    </div>
+    
   </header>
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -366,26 +363,17 @@
         </div>
       </div>
 
-      <!-- Online Users -->
+      <!-- Online Counter -->
       <div class="forum-card p-6 rounded-xl">
         <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
-          <i class="fas fa-user-friends text-indigo-400"></i>
-          Đang trực tuyến
+          <i class="fas fa-globe text-indigo-400"></i>
+          Thống kê truy cập
         </h2>
-        <div class="supercounter-container">
+        <div class="supercounter-container text-center">
           <!-- BEGIN: Powered by Supercounters.com -->
-<center><script type="text/javascript" src="//widget.supercounters.com/ssl/online_i.js"></script><script type="text/javascript">sc_online_i(1721766,"ffffff","000000");</script><!-- END: Powered by Supercounters.com -->
-        </div>
-        <div class="space-y-2 mt-4" id="onlineUsers">
-          <div class="flex items-center gap-2 p-2">
-            <img src="https://api.dicebear.com/7.x/adventurer/svg?seed=Admin" class="w-6 h-6 rounded-full">
-            <span class="text-sm">Admin</span>
-            <span class="admin-badge text-xs ml-auto">Admin</span>
-          </div>
-          <div class="flex items-center gap-2 p-2">
-            <img src="https://api.dicebear.com/7.x/adventurer/svg?seed=User1" class="w-6 h-6 rounded-full">
-            <span class="text-sm">User1</span>
-          </div>
+          <script type="text/javascript" src="//widget.supercounters.com/ssl/online_i.js"></script>
+          <script type="text/javascript">sc_online_i(1721766,"ffffff","e0e0e0");</script>
+          <!-- END: Powered by Supercounters.com -->
         </div>
       </div>
     </div>
@@ -452,18 +440,7 @@ window.onload = () => {
   
   listenTopics();
   updateStats();
-  
-  // Initialize Supercounters if not already loaded
-  setTimeout(initSupercounters, 1000);
 };
-
-function initSupercounters() {
-  // If Supercounters didn't load, try to initialize it
-  if (document.querySelectorAll('[src*="supercounters.com"]').length > 0 && 
-      typeof sc_online_i === 'function') {
-    sc_online_i(1721766, "ffffff", "e0e0e0");
-  }
-}
 
 function loginUser() {
   let name = document.getElementById("loginName").value.trim();
@@ -488,6 +465,7 @@ function logoutUser() {
   isAdmin = false;
   eraseCookie("dora_user");
   eraseCookie("dora_admin");
+  eraseCookie("dora_remember");
   document.getElementById("userSection").classList.add("hidden");
   document.getElementById("loginForm").classList.remove("hidden");
   document.getElementById("topicForm").classList.add("hidden");
