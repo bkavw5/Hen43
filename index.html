@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
@@ -165,6 +166,45 @@
       background: var(--border-color);
       margin: 16px 0;
     }
+    
+    /* Responsive styles */
+    @media (max-width: 768px) {
+      .forum-container {
+        padding: 1rem;
+      }
+      
+      .grid-cols-1 {
+        grid-template-columns: 1fr;
+      }
+      
+      .lg\:col-span-2, .lg\:col-span-1 {
+        grid-column: 1;
+      }
+      
+      .flex-row {
+        flex-direction: column;
+      }
+      
+      .navbar {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.5rem;
+      }
+      
+      .forum-card {
+        padding: 1rem;
+      }
+      
+      .topic-content {
+        padding-left: 8px;
+      }
+      
+      .supercounter-container {
+        display: flex;
+        justify-content: center;
+        margin-top: 0.5rem;
+      }
+    }
   </style>
 </head>
 <body class="min-h-screen">
@@ -178,7 +218,7 @@
     </h1>
     <div class="text-sm text-gray-400">
       <i class="fas fa-users mr-1"></i>
-      <span id="onlineCount">12</span> người online
+      <span id="onlineCount">--</span> người online
     </div>
   </header>
 
@@ -195,6 +235,10 @@
         <button class="btn-primary px-4 py-3 rounded-lg w-full font-medium" onclick="loginUser()">
           <i class="fas fa-sign-in-alt mr-2"></i>Đăng nhập
         </button>
+        <div class="mt-4 text-sm text-gray-400 flex items-center">
+          <input type="checkbox" id="rememberMe" class="mr-2" checked>
+          <label for="rememberMe">Ghi nhớ đăng nhập</label>
+        </div>
       </div>
 
       <!-- User -->
@@ -328,7 +372,11 @@
           <i class="fas fa-user-friends text-indigo-400"></i>
           Đang trực tuyến
         </h2>
-        <div class="space-y-2" id="onlineUsers">
+        <div class="supercounter-container">
+          <!-- BEGIN: Powered by Supercounters.com -->
+<center><script type="text/javascript" src="//widget.supercounters.com/ssl/online_i.js"></script><script type="text/javascript">sc_online_i(1721766,"ffffff","000000");</script><!-- END: Powered by Supercounters.com -->
+        </div>
+        <div class="space-y-2 mt-4" id="onlineUsers">
           <div class="flex items-center gap-2 p-2">
             <img src="https://api.dicebear.com/7.x/adventurer/svg?seed=Admin" class="w-6 h-6 rounded-full">
             <span class="text-sm">Admin</span>
@@ -368,36 +416,85 @@ let currentUser = null, isAdmin = false;
 const pageSize = 5; 
 let topics = [];
 
-// Cookie
-function setCookie(n,v,d=7){let t=new Date();t.setTime(t.getTime()+d*24*60*60*1000);document.cookie=n+"="+v+";expires="+t.toUTCString()+";path=/";}
-function getCookie(n){return document.cookie.split("; ").reduce((r,v)=>{const[k,val]=v.split("=");return k===n?val:r},"");}
-function eraseCookie(n){document.cookie=n+"=; Max-Age=0; path=/";}
-
-// Login
-window.onload=()=>{
-  let u=getCookie("dora_user"),a=getCookie("dora_admin");
-  if(u){currentUser=u;isAdmin=a==="1";showUserSection();}
-  listenTopics();
-  updateStats();
-};
-
-function loginUser(){
-  let name=document.getElementById("loginName").value.trim();
-  let pass=document.getElementById("loginPass").value;
-  if(!name) return alert("Nhập tên đăng nhập");
-  if(name==="Admin"){ if(pass!=="Top123") return alert("Sai mật khẩu!"); isAdmin=true; setCookie("dora_admin","1"); }
-  currentUser=name; setCookie("dora_user",currentUser); showUserSection();
+// Cookie functions with remember me option
+function setCookie(n, v, d = 7) {
+  let t = new Date();
+  t.setTime(t.getTime() + d * 24 * 60 * 60 * 1000);
+  document.cookie = n + "=" + v + ";expires=" + t.toUTCString() + ";path=/";
 }
 
-function logoutUser(){
-  currentUser=null;isAdmin=false;eraseCookie("dora_user");eraseCookie("dora_admin");
+function getCookie(n) {
+  return document.cookie.split("; ").reduce((r, v) => {
+    const [k, val] = v.split("=");
+    return k === n ? val : r;
+  }, "");
+}
+
+function eraseCookie(n) {
+  document.cookie = n + "=; Max-Age=0; path=/";
+}
+
+// Login
+window.onload = () => {
+  // Check if user was previously logged in
+  const rememberMe = getCookie("dora_remember") === "true";
+  if (rememberMe) {
+    let u = getCookie("dora_user"), a = getCookie("dora_admin");
+    if (u) {
+      currentUser = u;
+      isAdmin = a === "1";
+      showUserSection();
+    }
+  }
+  
+  // Check remember me checkbox if needed
+  document.getElementById("rememberMe").checked = rememberMe;
+  
+  listenTopics();
+  updateStats();
+  
+  // Initialize Supercounters if not already loaded
+  setTimeout(initSupercounters, 1000);
+};
+
+function initSupercounters() {
+  // If Supercounters didn't load, try to initialize it
+  if (document.querySelectorAll('[src*="supercounters.com"]').length > 0 && 
+      typeof sc_online_i === 'function') {
+    sc_online_i(1721766, "ffffff", "e0e0e0");
+  }
+}
+
+function loginUser() {
+  let name = document.getElementById("loginName").value.trim();
+  let pass = document.getElementById("loginPass").value;
+  const rememberMe = document.getElementById("rememberMe").checked;
+  
+  if (!name) return alert("Nhập tên đăng nhập");
+  if (name === "Admin") { 
+    if (pass !== "Top123") return alert("Sai mật khẩu!"); 
+    isAdmin = true; 
+    setCookie("dora_admin", "1", rememberMe ? 30 : 1);
+  }
+  
+  currentUser = name; 
+  setCookie("dora_user", currentUser, rememberMe ? 30 : 1);
+  setCookie("dora_remember", rememberMe ? "true" : "false", rememberMe ? 30 : 1);
+  showUserSection();
+}
+
+function logoutUser() {
+  currentUser = null;
+  isAdmin = false;
+  eraseCookie("dora_user");
+  eraseCookie("dora_admin");
   document.getElementById("userSection").classList.add("hidden");
   document.getElementById("loginForm").classList.remove("hidden");
   document.getElementById("topicForm").classList.add("hidden");
 }
 
-function showUserSection(){
-  document.getElementById("currentUser").innerText=currentUser;
+function showUserSection() {
+  document.getElementById("currentUser").innerText = currentUser;
   document.getElementById("userSection").classList.remove("hidden");
   document.getElementById("loginForm").classList.add("hidden");
   document.getElementById("topicForm").classList.remove("hidden");
@@ -405,7 +502,7 @@ function showUserSection(){
 
 // === BBCode Parser ===
 function parseBBCode(text) {
-  return (text||"")
+  return (text || "")
     .replace(/\[b\](.*?)\[\/b\]/gi, '<strong>$1</strong>')
     .replace(/\[i\](.*?)\[\/i\]/gi, '<em>$1</em>')
     .replace(/\[u\](.*?)\[\/u\]/gi, '<u>$1</u>')
@@ -422,7 +519,7 @@ function parseBBCode(text) {
           try {
             const params = new URL(url).searchParams;
             videoId = params.get("v");
-          } catch(e) {}
+          } catch (e) {}
         }
         return `<iframe class="w-full max-h-96 rounded" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe>`;
       }
@@ -437,15 +534,15 @@ function parseBBCode(text) {
 }
   
 // Post topic
-document.getElementById("topicForm").addEventListener("submit", function(e){
+document.getElementById("topicForm").addEventListener("submit", function(e) {
   e.preventDefault();
-  if(!currentUser) return alert("Bạn cần đăng nhập!");
+  if (!currentUser) return alert("Bạn cần đăng nhập!");
   
   let title = document.getElementById("title").value.trim();
   let content = document.getElementById("content").value.trim();
   let category = document.getElementById("category").value;
 
-  if(!title || !content) return alert("Vui lòng nhập đầy đủ tiêu đề và nội dung!");
+  if (!title || !content) return alert("Vui lòng nhập đầy đủ tiêu đề và nội dung!");
 
   let now = Date.now();
 
@@ -482,13 +579,16 @@ document.getElementById("topicForm").addEventListener("submit", function(e){
 });
 
 // Avatar
-function avatarUrl(name){return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}`;}
+function avatarUrl(name) {
+  return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}`;
+}
 
 // Real-time load topics
-function listenTopics(){
-  db.ref("topics").on("value",snap=>{
-    topics=[]; let obj=snap.val()||{};
-    topics=Object.entries(obj).map(([id,t])=>({id,...t}));
+function listenTopics() {
+  db.ref("topics").on("value", snap => {
+    topics = [];
+    let obj = snap.val() || {};
+    topics = Object.entries(obj).map(([id, t]) => ({id, ...t}));
     applyFilterAndRender(1);
     updateStats();
   });
@@ -499,12 +599,20 @@ function updateStats() {
   document.getElementById("statsTopics").textContent = topics.length;
   
   let commentCount = 0;
+  let users = new Set();
+  
   topics.forEach(topic => {
+    users.add(topic.author);
     if (topic.comments) {
       commentCount += Object.keys(topic.comments).length;
+      Object.values(topic.comments).forEach(comment => {
+        users.add(comment.user);
+      });
     }
   });
+  
   document.getElementById("statsComments").textContent = commentCount;
+  document.getElementById("statsUsers").textContent = users.size;
   
   // Update category counts
   const catCounts = {
@@ -525,15 +633,16 @@ function updateStats() {
 }
 
 // Filter + Render
-function applyFilterAndRender(page){
-  let cat=document.getElementById("filterCategory").value;
-  let kw=document.getElementById("searchKeyword").value.trim().toLowerCase();
-  let arr=topics;
-  if(cat!=="Tất cả") arr=arr.filter(t=>t.category===cat);
-  if(kw) arr=arr.filter(t=>(t.title||"").toLowerCase().includes(kw)||(t.content||"").toLowerCase().includes(kw));
-  arr.sort((a,b)=> (b.sticky===true)-(a.sticky===true) || b.ts-a.ts);
-  let total=arr.length,pages=Math.ceil(total/pageSize),start=(page-1)*pageSize;
-  renderTopics(arr.slice(start,start+pageSize)); renderPagination(page,pages);
+function applyFilterAndRender(page) {
+  let cat = document.getElementById("filterCategory").value;
+  let kw = document.getElementById("searchKeyword").value.trim().toLowerCase();
+  let arr = topics;
+  if (cat !== "Tất cả") arr = arr.filter(t => t.category === cat);
+  if (kw) arr = arr.filter(t => (t.title || "").toLowerCase().includes(kw) || (t.content || "").toLowerCase().includes(kw));
+  arr.sort((a, b) => (b.sticky === true) - (a.sticky === true) || b.ts - a.ts);
+  let total = arr.length, pages = Math.ceil(total / pageSize), start = (page - 1) * pageSize;
+  renderTopics(arr.slice(start, start + pageSize)); 
+  renderPagination(page, pages);
 }
 
 // Set category filter
@@ -543,8 +652,8 @@ function setCategoryFilter(category) {
 }
 
 // Render topics
-function renderTopics(arr){
-  let cont=document.getElementById("topicsList");
+function renderTopics(arr) {
+  let cont = document.getElementById("topicsList");
   if (arr.length === 0) {
     cont.innerHTML = `
       <div class="forum-card p-6 rounded-xl text-center">
@@ -556,18 +665,18 @@ function renderTopics(arr){
     return;
   }
   
-  cont.innerHTML=arr.map(t=>{
-    let time=new Date(t.ts).toLocaleString("vi-VN");
-    let cmCnt=t.comments?Object.keys(t.comments).length:0;
-    let isAuthorAdmin=t.author==="Admin";
+  cont.innerHTML = arr.map(t => {
+    let time = new Date(t.ts).toLocaleString("vi-VN");
+    let cmCnt = t.comments ? Object.keys(t.comments).length : 0;
+    let isAuthorAdmin = t.author === "Admin";
     return `
-      <div class="forum-card p-6 rounded-xl mb-4 ${t.sticky?"sticky":""}">
+      <div class="forum-card p-6 rounded-xl mb-4 ${t.sticky ? "sticky" : ""}">
         <div class="flex items-center mb-3">
           <img src="${avatarUrl(t.author)}" class="w-10 h-10 rounded-full mr-3">
           <div>
             <div class="flex items-center gap-2">
               <span class="font-medium">${t.author}</span>
-              ${isAuthorAdmin?'<span class="admin-badge">Admin</span>':''}
+              ${isAuthorAdmin ? '<span class="admin-badge">Admin</span>' : ''}
             </div>
             <span class="text-sm text-gray-400">${time}</span>
           </div>
@@ -580,7 +689,7 @@ function renderTopics(arr){
         <div class="topic-content bbcode text-gray-300">${parseBBCode(t.content)}</div>
         <div class="divider"></div>
         <div class="mt-2">${renderCommentSection(t)}</div>
-        ${isAdmin?`
+        ${isAdmin ? `
           <div class="mt-4 flex gap-2">
             <button onclick="deleteTopic('${t.id}')" class="btn-danger px-3 py-1 rounded text-sm">
               <i class="fas fa-trash mr-1"></i>Xóa
@@ -589,93 +698,121 @@ function renderTopics(arr){
               <i class="fas fa-edit mr-1"></i>Sửa
             </button>
             <button onclick="toggleSticky('${t.id}',${t.sticky})" class="bg-yellow-600 px-3 py-1 rounded text-sm hover:bg-yellow-500">
-              <i class="fas fa-thumbtack mr-1"></i>${t.sticky?"Bỏ ghim":"Ghim"}
+              <i class="fas fa-thumbtack mr-1"></i>${t.sticky ? "Bỏ ghim" : "Ghim"}
             </button>
-          </div>`:""}
-      </div>`;}).join("");
+          </div>` : ""}
+      </div>`;
+  }).join("");
 }
 
 // Render comments
-function renderCommentSection(topic){
-  return `<div class="mb-3">${topic.comments?Object.entries(topic.comments).map(([cid,cm])=>{
-      let t=new Date(cm.ts).toLocaleString("vi-VN"); let isAdminComment=cm.user==="Admin";
+function renderCommentSection(topic) {
+  return `<div class="mb-3">${topic.comments ? Object.entries(topic.comments).map(([cid, cm]) => {
+      let t = new Date(cm.ts).toLocaleString("vi-VN"); 
+      let isAdminComment = cm.user === "Admin";
       return `<div class="flex items-start mb-4">
         <img src="${avatarUrl(cm.user)}" class="w-8 h-8 rounded-full mr-3 mt-1">
         <div class="flex-1">
           <div class="flex justify-between items-center mb-1">
             <div class="flex items-center gap-2">
-              <span class="font-medium ${isAdminComment?'text-yellow-400':''}">${cm.user}</span>
-              ${isAdminComment?'<span class="admin-badge text-xs">Admin</span>':''}
+              <span class="font-medium ${isAdminComment ? 'text-yellow-400' : ''}">${cm.user}</span>
+              ${isAdminComment ? '<span class="admin-badge text-xs">Admin</span>' : ''}
             </div>
             <span class="text-xs text-gray-400">${t}</span>
           </div>
           <p class="bbcode text-gray-300">${parseBBCode(cm.text)}</p>
-          ${isAdmin?`<button onclick="deleteComment('${topic.id}','${cid}')" class="mt-1 text-xs text-red-400 hover:underline">
+          ${isAdmin ? `<button onclick="deleteComment('${topic.id}','${cid}')" class="mt-1 text-xs text-red-400 hover:underline">
             <i class="fas fa-trash mr-1"></i>Xóa
-          </button>`:""}
+          </button>` : ""}
         </div>
-      </div>`;}).join(""):""}</div>
-      ${currentUser?`
+      </div>`;
+    }).join("") : ""}</div>
+      ${currentUser ? `
         <div class="mt-2 flex">
           <input id="cm-input-${topic.id}" type="text" placeholder="Viết bình luận..." class="input-field flex-1 p-2 rounded-l-lg">
           <button onclick="postComment('${topic.id}')" class="btn-primary px-4 rounded-r-lg">
             <i class="fas fa-paper-plane"></i>
           </button>
-        </div>`:""}`;
+        </div>` : ""}`;
 }
 
-function postComment(id){
-  let inp=document.getElementById("cm-input-"+id); let text=inp.value.trim(); if(!text) return;
-  db.ref("topics/"+id+"/comments").push({user:currentUser,text,ts:Date.now()})
-    .then(()=>{inp.value=""; showNotification("Đăng bình luận thành công!", "success");})
-    .catch(err=>showNotification("Lỗi đăng bình luận: "+err.message, "error"));
+function postComment(id) {
+  let inp = document.getElementById("cm-input-" + id); 
+  let text = inp.value.trim(); 
+  if (!text) return;
+  
+  db.ref("topics/" + id + "/comments").push({user: currentUser, text, ts: Date.now()})
+    .then(() => {
+      inp.value = ""; 
+      showNotification("Đăng bình luận thành công!", "success");
+    })
+    .catch(err => showNotification("Lỗi đăng bình luận: " + err.message, "error"));
 }
 
 // Admin tools
-function deleteTopic(id){if(confirm("Xóa chủ đề?")) db.ref("topics/"+id).remove().then(() => {
-  showNotification("Đã xóa chủ đề", "success");
-});}
-function editTopicPrompt(id,title,content){let nt=prompt("Tiêu đề:",title); if(nt===null) return;
-  let nc=prompt("Nội dung:",content); if(nc===null) return;
-  db.ref("topics/"+id).update({title:nt,content:nc}).then(() => {
+function deleteTopic(id) {
+  if (confirm("Xóa chủ đề?")) {
+    db.ref("topics/" + id).remove().then(() => {
+      showNotification("Đã xóa chủ đề", "success");
+    });
+  }
+}
+
+function editTopicPrompt(id, title, content) {
+  let nt = prompt("Tiêu đề:", title); 
+  if (nt === null) return;
+  let nc = prompt("Nội dung:", content); 
+  if (nc === null) return;
+  
+  db.ref("topics/" + id).update({title: nt, content: nc}).then(() => {
     showNotification("Đã cập nhật chủ đề", "success");
-  });}
-function toggleSticky(id,cur){db.ref("topics/"+id).update({sticky:!cur}).then(() => {
-  showNotification(`Đã ${!cur ? 'ghim' : 'bỏ ghim'} chủ đề`, "success");
-});}
-function deleteComment(tid,cid){if(confirm("Xóa bình luận?")) db.ref("topics/"+tid+"/comments/"+cid).remove().then(() => {
-  showNotification("Đã xóa bình luận", "success");
-});}
+  });
+}
+
+function toggleSticky(id, cur) {
+  db.ref("topics/" + id).update({sticky: !cur}).then(() => {
+    showNotification(`Đã ${!cur ? 'ghim' : 'bỏ ghim'} chủ đề`, "success");
+  });
+}
+
+function deleteComment(tid, cid) {
+  if (confirm("Xóa bình luận?")) {
+    db.ref("topics/" + tid + "/comments/" + cid).remove().then(() => {
+      showNotification("Đã xóa bình luận", "success");
+    });
+  }
+}
 
 // Pagination
-function renderPagination(cur,max){
-  let pg=document.getElementById("pagination"); pg.innerHTML="";
+function renderPagination(cur, max) {
+  let pg = document.getElementById("pagination"); 
+  pg.innerHTML = "";
   if (max <= 1) return;
   
   // Previous button
   if (cur > 1) {
-    let prevBtn=document.createElement("button");
+    let prevBtn = document.createElement("button");
     prevBtn.innerHTML = "<i class='fas fa-chevron-left'></i>";
     prevBtn.className = "pagination-btn w-10 h-10 rounded-lg flex items-center justify-center";
-    prevBtn.onclick=()=>applyFilterAndRender(cur-1);
+    prevBtn.onclick = () => applyFilterAndRender(cur - 1);
     pg.appendChild(prevBtn);
   }
   
   // Page numbers
-  for(let i=1;i<=max;i++){
-    let b=document.createElement("button");
-    b.innerText=i; 
-    b.className=`pagination-btn w-10 h-10 rounded-lg flex items-center justify-center ${i===cur?"active":""}`;
-    b.onclick=()=>applyFilterAndRender(i); 
+  for (let i = 1; i <= max; i++) {
+    let b = document.createElement("button");
+    b.innerText = i; 
+    b.className = `pagination-btn w-10 h-10 rounded-lg flex items-center justify-center ${i === cur ? "active" : ""}`;
+    b.onclick = () => applyFilterAndRender(i); 
     pg.appendChild(b);
   }
   
   // Next button
   if (cur < max) {
-    let nextBtn=document.createElement("button");
+    let nextBtn = document.createElement("button");
     nextBtn.innerHTML = "<i class='fas fa-chevron-right'></i>";
     nextBtn.className = "pagination-btn w-10 h-10 rounded-lg flex items-center justify-center";
-    nextBtn.onclick=()=>applyFilterAndRender(cur+1);
+    nextBtn.onclick = () => applyFilterAndRender(cur + 1);
     pg.appendChild(nextBtn);
   }
 }
@@ -700,7 +837,9 @@ function showNotification(message, type = "info") {
   setTimeout(() => {
     notification.style.opacity = "0";
     setTimeout(() => {
-      document.body.removeChild(notification);
+      if (document.body.contains(notification)) {
+        document.body.removeChild(notification);
+      }
     }, 300);
   }, 3000);
 }
@@ -708,4 +847,3 @@ function showNotification(message, type = "info") {
 
 </body>
 </html>
-
