@@ -559,7 +559,7 @@ function loginWithUsername() {
   });
 }
 
-// Register with username - FIXED VERSION
+// Register with username
 function registerWithUsername() {
   const username = document.getElementById('registerUsername').value.trim();
   const password = document.getElementById('registerPassword').value;
@@ -733,7 +733,7 @@ function parseBBCode(text) {
     });
 }
 
-// Post topic
+// Post topic - Updated to use displayName from database
 document.getElementById("topicForm").addEventListener("submit", function(e) {
   e.preventDefault();
   if (!currentUser) return showNotification("Bạn cần đăng nhập!", 'error');
@@ -745,28 +745,39 @@ document.getElementById("topicForm").addEventListener("submit", function(e) {
   if (!title || !content) return showNotification("Vui lòng nhập đầy đủ tiêu đề và nội dung!", 'error');
 
   let now = Date.now();
-
   const submitBtn = e.target.querySelector('button[type="submit"]');
   const originalText = submitBtn.innerHTML;
   submitBtn.innerHTML = "<i class='fas fa-spinner fa-spin mr-2'></i>Đang đăng...";
   submitBtn.disabled = true;
 
-  console.log('Posting topic:', {
-    title, content, category,
-    author: currentUser.displayName || currentUser.email,
-    authorId: currentUser.uid,
-    ts: now,
-    sticky: false,
-    comments: {}
-  });
+  // Fetch displayName from database
+  db.ref(`users/${currentUser.uid}`).once('value').then((snapshot) => {
+    const profile = snapshot.val();
+    if (!profile || !profile.displayName) {
+      throw new Error('Không tìm thấy tên hiển thị');
+    }
 
-  db.ref("topics").push({
-    title, content, category,
-    author: currentUser.displayName || currentUser.email,
-    authorId: currentUser.uid,
-    ts: now,
-    sticky: false,
-    comments: {}
+    console.log('Posting topic:', {
+      title,
+      content,
+      category,
+      author: profile.displayName,
+      authorId: currentUser.uid,
+      ts: now,
+      sticky: false,
+      comments: {}
+    });
+
+    return db.ref("topics").push({
+      title,
+      content,
+      category,
+      author: profile.displayName,
+      authorId: currentUser.uid,
+      ts: now,
+      sticky: false,
+      comments: {}
+    });
   })
   .then(() => {
     document.getElementById("title").value = "";
@@ -783,6 +794,36 @@ document.getElementById("topicForm").addEventListener("submit", function(e) {
     submitBtn.disabled = false;
   });
 });
+
+// Post comment - Updated to use displayName from database
+function postComment(id) {
+  let inp = document.getElementById("cm-input-" + id);
+  let text = inp.value.trim();
+  if (!text || !currentUser) return;
+
+  // Fetch displayName from database
+  db.ref(`users/${currentUser.uid}`).once('value').then((snapshot) => {
+    const profile = snapshot.val();
+    if (!profile || !profile.displayName) {
+      throw new Error('Không tìm thấy tên hiển thị');
+    }
+
+    return db.ref("topics/" + id + "/comments").push({
+      user: profile.displayName,
+      userId: currentUser.uid,
+      text,
+      ts: Date.now()
+    });
+  })
+  .then(() => {
+    inp.value = "";
+    showNotification("Đăng bình luận thành công!", "success");
+  })
+  .catch(err => {
+    console.error("Error posting comment:", err);
+    showNotification("Lỗi đăng bình luận: " + err.message, "error");
+  });
+}
 
 // Avatar
 function avatarUrl(name) {
@@ -961,28 +1002,6 @@ function renderCommentSection(topic) {
           <i class="fas fa-paper-plane"></i>
         </button>
       </div>` : ""}`;
-}
-
-// Post comment
-function postComment(id) {
-  let inp = document.getElementById("cm-input-" + id);
-  let text = inp.value.trim();
-  if (!text || !currentUser) return;
-
-  db.ref("topics/" + id + "/comments").push({
-    user: currentUser.displayName || currentUser.email,
-    userId: currentUser.uid,
-    text,
-    ts: Date.now()
-  })
-    .then(() => {
-      inp.value = "";
-      showNotification("Đăng bình luận thành công!", "success");
-    })
-    .catch(err => {
-      console.error("Error posting comment:", err);
-      showNotification("Lỗi đăng bình luận: " + err.message, "error");
-    });
 }
 
 // Topic and Comment Management
