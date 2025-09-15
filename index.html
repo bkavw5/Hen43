@@ -297,7 +297,7 @@
             <option>Thảo luận</option>
           </select>
           <div class="relative flex-1">
-            <input class="input-field p-3 w-full rounded-lg pl-10" id="searchKeyword" oninput="applyFilterAndRender(1)" placeholder="Tìm kiếm..." type="text" />
+            <input class="input-field p-3 w-full rounded-lg pl-10" id="searchKeyword" oninput="debounce(applyFilterAndRender, 300)(1)" placeholder="Tìm kiếm..." type="text" />
             <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
           </div>
         </div>
@@ -404,11 +404,15 @@ let currentUser = null, isAdmin = false;
 const pageSize = 5; 
 let topics = [];
 
-// Cookie functions with remember me option
+// Cookie functions
 function setCookie(n, v, d = 7) {
-  let t = new Date();
-  t.setTime(t.getTime() + d * 24 * 60 * 60 * 1000);
-  document.cookie = n + "=" + v + ";expires=" + t.toUTCString() + ";path=/";
+  let cookieStr = n + "=" + v + ";path=/";
+  if (d) {
+    let t = new Date();
+    t.setTime(t.getTime() + d * 24 * 60 * 60 * 1000);
+    cookieStr += ";expires=" + t.toUTCString();
+  }
+  document.cookie = cookieStr;
 }
 
 function getCookie(n) {
@@ -424,19 +428,13 @@ function eraseCookie(n) {
 
 // Login
 window.onload = () => {
-  // Check if user was previously logged in
-  const rememberMe = getCookie("dora_remember") === "true";
-  if (rememberMe) {
-    let u = getCookie("dora_user"), a = getCookie("dora_admin");
-    if (u) {
-      currentUser = u;
-      isAdmin = a === "1";
-      showUserSection();
-    }
+  // Always check for user cookie
+  let u = getCookie("dora_user"), a = getCookie("dora_admin");
+  if (u) {
+    currentUser = u;
+    isAdmin = a === "1";
+    showUserSection();
   }
-  
-  // Check remember me checkbox if needed
-  document.getElementById("rememberMe").checked = rememberMe;
   
   listenTopics();
   updateStats();
@@ -451,12 +449,11 @@ function loginUser() {
   if (name === "Admin") { 
     if (pass !== "Top123") return alert("Sai mật khẩu!"); 
     isAdmin = true; 
-    setCookie("dora_admin", "1", rememberMe ? 30 : 1);
+    setCookie("dora_admin", "1", rememberMe ? 30 : 0);
   }
   
   currentUser = name; 
-  setCookie("dora_user", currentUser, rememberMe ? 30 : 1);
-  setCookie("dora_remember", rememberMe ? "true" : "false", rememberMe ? 30 : 1);
+  setCookie("dora_user", currentUser, rememberMe ? 30 : 0);
   showUserSection();
 }
 
@@ -465,7 +462,6 @@ function logoutUser() {
   isAdmin = false;
   eraseCookie("dora_user");
   eraseCookie("dora_admin");
-  eraseCookie("dora_remember");
   document.getElementById("userSection").classList.add("hidden");
   document.getElementById("loginForm").classList.remove("hidden");
   document.getElementById("topicForm").classList.add("hidden");
@@ -672,7 +668,7 @@ function renderTopics(arr) {
             <button onclick="deleteTopic('${t.id}')" class="btn-danger px-3 py-1 rounded text-sm">
               <i class="fas fa-trash mr-1"></i>Xóa
             </button>
-            <button onclick="editTopicPrompt('${t.id}','${t.title}','${t.content}')" class="bg-gray-600 px-3 py-1 rounded text-sm hover:bg-gray-500">
+            <button onclick="editTopicPrompt('${t.id}','${t.title.replace(/'/g, "\\'")}','${t.content.replace(/'/g, "\\'")}')" class="bg-gray-600 px-3 py-1 rounded text-sm hover:bg-gray-500">
               <i class="fas fa-edit mr-1"></i>Sửa
             </button>
             <button onclick="toggleSticky('${t.id}',${t.sticky})" class="bg-yellow-600 px-3 py-1 rounded text-sm hover:bg-yellow-500">
@@ -820,6 +816,15 @@ function showNotification(message, type = "info") {
       }
     }, 300);
   }, 3000);
+}
+
+// Debounce function for optimization
+function debounce(func, delay) {
+  let timeout;
+  return function(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), delay);
+  };
 }
 </script>
 
