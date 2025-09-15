@@ -167,7 +167,6 @@
       margin: 16px 0;
     }
     
-    /* Responsive styles */
     @media (max-width: 768px) {
       .forum-container {
         padding: 1rem;
@@ -210,13 +209,11 @@
 <body class="min-h-screen">
 
 <div class="forum-container p-4">
-  <!-- Header -->
   <header class="navbar rounded-lg p-4 mb-6 flex justify-between items-center">
     <h1 class="text-2xl font-bold flex items-center gap-2">
       <i class="fas fa-comments text-indigo-400"></i>
       Hen43 Forum
     </h1>
-    
   </header>
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -229,9 +226,9 @@
             <i class="fas fa-sign-in-alt text-indigo-400"></i>
             Đăng nhập
           </h2>
-          <input class="input-field p-3 w-full mb-3 rounded-lg" id="loginEmail" placeholder="Email" type="email" />
+          <input class="input-field p-3 w-full mb-3 rounded-lg" id="loginUsername" placeholder="Tên đăng nhập" type="text" />
           <input class="input-field p-3 w-full mb-4 rounded-lg" id="loginPassword" placeholder="Mật khẩu" type="password" />
-          <button class="btn-primary px-4 py-3 rounded-lg w-full font-medium mb-3" onclick="loginWithEmail()">
+          <button class="btn-primary px-4 py-3 rounded-lg w-full font-medium mb-3" onclick="loginWithUsername()">
             <i class="fas fa-sign-in-alt mr-2"></i>Đăng nhập
           </button>
           <div class="text-center">
@@ -245,10 +242,10 @@
             <i class="fas fa-user-plus text-indigo-400"></i>
             Đăng ký
           </h2>
-          <input class="input-field p-3 w-full mb-3 rounded-lg" id="registerEmail" placeholder="Email" type="email" />
+          <input class="input-field p-3 w-full mb-3 rounded-lg" id="registerUsername" placeholder="Tên đăng nhập" type="text" />
           <input class="input-field p-3 w-full mb-3 rounded-lg" id="registerPassword" placeholder="Mật khẩu" type="password" />
           <input class="input-field p-3 w-full mb-4 rounded-lg" id="registerDisplayName" placeholder="Tên hiển thị" type="text" />
-          <button class="btn-success px-4 py-3 rounded-lg w-full font-medium mb-3" onclick="registerWithEmail()">
+          <button class="btn-success px-4 py-3 rounded-lg w-full font-medium mb-3" onclick="registerWithUsername()">
             <i class="fas fa-user-plus mr-2"></i>Đăng ký
           </button>
           <div class="text-center">
@@ -420,10 +417,8 @@
           Thống kê truy cập
         </h2>
         <div class="supercounter-container text-center">
-          <!-- BEGIN: Powered by Supercounters.com -->
           <script type="text/javascript" src="//widget.supercounters.com/ssl/online_i.js"></script>
           <script type="text/javascript">sc_online_i(1721766,"ffffff","818cf8");</script>
-          <!-- END: Powered by Supercounters.com -->
         </div>
       </div>
     </div>
@@ -435,7 +430,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 <script>
-// Firebase Config
 const firebaseConfig = {
   apiKey: "AIzaSyD-RnaaiHIxM5mvH_sTW9Q0_b8WKj5NZ4A",
   authDomain: "hen43-forum.firebaseapp.com",
@@ -447,30 +441,26 @@ const firebaseConfig = {
   measurementId: "G-TK1G8LYT0T"
 };
 
-// Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
-</script>
 
-<script>
 let currentUser = null;
 let isAdmin = false;
-const pageSize = 5; 
+const pageSize = 5;
 let topics = [];
 
 // Auth state observer
 auth.onAuthStateChanged((user) => {
   if (user) {
     currentUser = user;
-    // Load user profile from database
     loadUserProfile(user.uid);
     showUserSection();
   } else {
     currentUser = null;
+    isAdmin = false;
     showAuthSection();
   }
-  // Initial load after auth state
   listenTopics();
   updateStats();
 });
@@ -480,16 +470,13 @@ function loadUserProfile(uid) {
     const profile = snapshot.val();
     if (profile) {
       isAdmin = profile.isAdmin || false;
-      document.getElementById('currentUser').textContent = profile.displayName || user.email;
-      document.getElementById('userEmail').textContent = user.email;
-      document.getElementById('updateDisplayName').value = profile.displayName || '';
-    } else {
-      // Default profile
-      isAdmin = false;
-      document.getElementById('currentUser').textContent = user.email;
-      document.getElementById('userEmail').textContent = user.email;
-      document.getElementById('updateDisplayName').value = '';
+      document.getElementById('currentUser').textContent = profile.username || 'User';
+      document.getElementById('userEmail').textContent = profile.email || '';
+      document.getElementById('updateDisplayName').value = profile.username || '';
     }
+  }).catch((error) => {
+    console.error('Load profile error:', error);
+    showNotification('Lỗi tải hồ sơ', 'error');
   });
 }
 
@@ -527,45 +514,58 @@ function hideForgotPasswordForm() {
   document.getElementById('forgotPasswordForm').classList.add('hidden');
 }
 
-// Login functions
-function loginWithEmail() {
-  const email = document.getElementById('loginEmail').value.trim();
+// Login with username
+function loginWithUsername() {
+  const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value;
 
-  if (!email || !password) {
-    return showNotification('Vui lòng nhập email và mật khẩu', 'error');
+  if (!username || !password) {
+    return showNotification('Vui lòng nhập tên đăng nhập và mật khẩu', 'error');
   }
 
-  auth.signInWithEmailAndPassword(email, password)
-    .then((userCredential) => {
-      showNotification('Đăng nhập thành công!', 'success');
-    })
-    .catch((error) => {
-      console.error('Login error:', error);
-      let message = 'Lỗi đăng nhập';
-      switch (error.code) {
-        case 'auth/user-not-found':
-          message = 'Không tìm thấy tài khoản';
-          break;
-        case 'auth/wrong-password':
-          message = 'Mật khẩu không đúng';
-          break;
-        case 'auth/invalid-email':
-          message = 'Email không hợp lệ';
-          break;
-        default:
-          message = error.message;
-      }
-      showNotification(message, 'error');
-    });
+  // Find user by username
+  db.ref('users').orderByChild('username').equalTo(username).once('value').then((snapshot) => {
+    const users = snapshot.val();
+    if (!users) {
+      return showNotification('Tên đăng nhập không tồn tại', 'error');
+    }
+
+    const userId = Object.keys(users)[0];
+    const userData = users[userId];
+
+    // Sign in with email and password
+    auth.signInWithEmailAndPassword(userData.email, password)
+      .then(() => {
+        showNotification('Đăng nhập thành công!', 'success');
+      })
+      .catch((error) => {
+        console.error('Login error:', error);
+        let message = 'Lỗi đăng nhập';
+        switch (error.code) {
+          case 'auth/wrong-password':
+            message = 'Mật khẩu không đúng';
+            break;
+          case 'auth/invalid-email':
+            message = 'Email không hợp lệ';
+            break;
+          default:
+            message = error.message;
+        }
+        showNotification(message, 'error');
+      });
+  }).catch((error) => {
+    console.error('Username lookup error:', error);
+    showNotification('Lỗi kiểm tra tên đăng nhập', 'error');
+  });
 }
 
-function registerWithEmail() {
-  const email = document.getElementById('registerEmail').value.trim();
+// Register with username
+function registerWithUsername() {
+  const username = document.getElementById('registerUsername').value.trim();
   const password = document.getElementById('registerPassword').value;
   const displayName = document.getElementById('registerDisplayName').value.trim();
 
-  if (!email || !password || !displayName) {
+  if (!username || !password || !displayName) {
     return showNotification('Vui lòng nhập đầy đủ thông tin', 'error');
   }
 
@@ -573,49 +573,54 @@ function registerWithEmail() {
     return showNotification('Mật khẩu phải ít nhất 6 ký tự', 'error');
   }
 
-  auth.createUserWithEmailAndPassword(email, password)
-    .then((userCredential) => {
-      const user = userCredential.user;
-      // Save profile to database
-      return db.ref(`users/${user.uid}`).set({
-        displayName: displayName,
-        email: email,
-        isAdmin: false,
-        createdAt: Date.now()
+  // Check if username exists
+  db.ref('users').orderByChild('username').equalTo(username).once('value').then((snapshot) => {
+    if (snapshot.exists()) {
+      return showNotification('Tên đăng nhập đã tồn tại', 'error');
+    }
+
+    // Create email from username (e.g., username@hen43forum.com)
+    const email = `${username}@hen43forum.com`;
+
+    // Create user with Firebase Auth
+    auth.createUserWithEmailAndPassword(email, password)
+      .then((userCredential) => {
+        const user = userCredential.user;
+        // Save profile to database
+        return db.ref(`users/${user.uid}`).set({
+          username: username,
+          displayName: displayName,
+          email: email,
+          isAdmin: false,
+          createdAt: Date.now()
+        });
+      })
+      .then(() => {
+        showNotification('Đăng ký thành công!', 'success');
+        showLoginForm();
+        document.getElementById('registerUsername').value = '';
+        document.getElementById('registerPassword').value = '';
+        document.getElementById('registerDisplayName').value = '';
+      })
+      .catch((error) => {
+        console.error('Register error:', error);
+        let message = 'Lỗi đăng ký';
+        switch (error.code) {
+          case 'auth/email-already-in-use':
+            message = 'Email đã được sử dụng';
+            break;
+          case 'auth/invalid-email':
+            message = 'Email không hợp lệ';
+            break;
+          case 'auth/weak-password':
+            message = 'Mật khẩu quá yếu';
+            break;
+          default:
+            message = error.message;
+        }
+        showNotification(message, 'error');
       });
-    })
-    .then(() => {
-      showNotification('Đăng ký thành công! Vui lòng xác nhận email.', 'success');
-      // Update display name
-      return userCredential.user.updateProfile({
-        displayName: displayName
-      });
-    })
-    .then(() => {
-      showLoginForm();
-      // Clear form
-      document.getElementById('registerEmail').value = '';
-      document.getElementById('registerPassword').value = '';
-      document.getElementById('registerDisplayName').value = '';
-    })
-    .catch((error) => {
-      console.error('Register error:', error);
-      let message = 'Lỗi đăng ký';
-      switch (error.code) {
-        case 'auth/email-already-in-use':
-          message = 'Email đã được sử dụng';
-          break;
-        case 'auth/invalid-email':
-          message = 'Email không hợp lệ';
-          break;
-        case 'auth/weak-password':
-          message = 'Mật khẩu quá yếu';
-          break;
-        default:
-          message = error.message;
-      }
-      showNotification(message, 'error');
-    });
+  });
 }
 
 function resetPassword() {
@@ -665,13 +670,9 @@ function saveProfileUpdate() {
     db.ref(`users/${currentUser.uid}`).update({
       displayName: newDisplayName
     }).then(() => {
-      currentUser.updateProfile({
-        displayName: newDisplayName
-      }).then(() => {
-        document.getElementById('currentUser').textContent = newDisplayName;
-        showNotification('Cập nhật hồ sơ thành công', 'success');
-        cancelProfileUpdate();
-      });
+      document.getElementById('currentUser').textContent = newDisplayName;
+      showNotification('Cập nhật hồ sơ thành công', 'success');
+      cancelProfileUpdate();
     }).catch((error) => {
       console.error('Update profile error:', error);
       showNotification('Lỗi cập nhật hồ sơ', 'error');
@@ -679,7 +680,7 @@ function saveProfileUpdate() {
   }
 }
 
-// === BBCode Parser ===
+// BBCode Parser
 function parseBBCode(text) {
   return (text || "")
     .replace(/\[b\](.*?)\[\/b\]/gi, '<strong>$1</strong>')
@@ -711,21 +712,20 @@ function parseBBCode(text) {
       return `<iframe src="${url}" class="w-full rounded shadow max-h-[500px]" frameborder="0" allowfullscreen></iframe>`;
     });
 }
-  
+
 // Post topic
 document.getElementById("topicForm").addEventListener("submit", function(e) {
   e.preventDefault();
-  if (!currentUser) return alert("Bạn cần đăng nhập!");
+  if (!currentUser) return showNotification("Bạn cần đăng nhập!", 'error');
   
   let title = document.getElementById("title").value.trim();
   let content = document.getElementById("content").value.trim();
   let category = document.getElementById("category").value;
 
-  if (!title || !content) return alert("Vui lòng nhập đầy đủ tiêu đề và nội dung!");
+  if (!title || !content) return showNotification("Vui lòng nhập đầy đủ tiêu đề và nội dung!", 'error');
 
   let now = Date.now();
 
-  // Thêm thông báo đang xử lý
   const submitBtn = e.target.querySelector('button[type="submit"]');
   const originalText = submitBtn.innerHTML;
   submitBtn.innerHTML = "<i class='fas fa-spinner fa-spin mr-2'></i>Đang đăng...";
@@ -740,11 +740,9 @@ document.getElementById("topicForm").addEventListener("submit", function(e) {
     comments: {}
   })
   .then(() => {
-    // Clear form
     document.getElementById("title").value = "";
     document.getElementById("content").value = "";
     document.getElementById("category").selectedIndex = 0;
-    
     showNotification("Đăng chủ đề thành công!", "success");
   })
   .catch(err => {
@@ -793,7 +791,6 @@ function updateStats() {
   document.getElementById("statsComments").textContent = commentCount;
   document.getElementById("statsUsers").textContent = users.size;
   
-  // Update category counts
   const catCounts = {
     'Chung': 0,
     'Hỏi đáp': 0,
@@ -847,7 +844,7 @@ function renderTopics(arr) {
   cont.innerHTML = arr.map(t => {
     let time = new Date(t.ts).toLocaleString("vi-VN");
     let cmCnt = t.comments ? Object.keys(t.comments).length : 0;
-    let isAuthorAdmin = t.authorId && db.ref(`users/${t.authorId}`).once('value').then(snap => snap.val().isAdmin);
+    let canEdit = currentUser && (isAdmin || t.authorId === currentUser.uid);
     return `
       <div class="forum-card p-6 rounded-xl mb-4 ${t.sticky ? "sticky" : ""}">
         <div class="flex items-center mb-3">
@@ -855,7 +852,7 @@ function renderTopics(arr) {
           <div>
             <div class="flex items-center gap-2">
               <span class="font-medium">${t.author}</span>
-              ${t.authorId ? `<span class="admin-badge" id="admin-badge-${t.id}">Loading...</span>` : ''}
+              <span class="admin-badge hidden" id="admin-badge-${t.id}"></span>
             </div>
             <span class="text-sm text-gray-400">${time}</span>
           </div>
@@ -868,7 +865,7 @@ function renderTopics(arr) {
         <div class="topic-content bbcode text-gray-300">${parseBBCode(t.content)}</div>
         <div class="divider"></div>
         <div class="mt-2">${renderCommentSection(t)}</div>
-        ${isAdmin ? `
+        ${canEdit ? `
           <div class="mt-4 flex gap-2">
             <button onclick="deleteTopic('${t.id}')" class="btn-danger px-3 py-1 rounded text-sm">
               <i class="fas fa-trash mr-1"></i>Xóa
@@ -876,14 +873,15 @@ function renderTopics(arr) {
             <button onclick="editTopicPrompt('${t.id}','${t.title.replace(/'/g, "\\'")}','${t.content.replace(/'/g, "\\'")}')" class="bg-gray-600 px-3 py-1 rounded text-sm hover:bg-gray-500">
               <i class="fas fa-edit mr-1"></i>Sửa
             </button>
+            ${isAdmin ? `
             <button onclick="toggleSticky('${t.id}',${t.sticky})" class="bg-yellow-600 px-3 py-1 rounded text-sm hover:bg-yellow-500">
               <i class="fas fa-thumbtack mr-1"></i>${t.sticky ? "Bỏ ghim" : "Ghim"}
-            </button>
+            </button>` : ''}
           </div>` : ""}
       </div>`;
   }).join("");
-  
-  // Check admin badges asynchronously
+
+  // Check admin badges
   arr.forEach(t => {
     if (t.authorId) {
       db.ref(`users/${t.authorId}`).once('value').then(snapshot => {
@@ -903,71 +901,82 @@ function renderTopics(arr) {
 // Render comments
 function renderCommentSection(topic) {
   return `<div class="mb-3">${topic.comments ? Object.entries(topic.comments).map(([cid, cm]) => {
-      let t = new Date(cm.ts).toLocaleString("vi-VN"); 
-      let isAdminComment = cm.userId && db.ref(`users/${cm.userId}`).once('value').then(snap => snap.val().isAdmin);
-      return `<div class="flex items-start mb-4">
-        <img src="${avatarUrl(cm.user)}" class="w-8 h-8 rounded-full mr-3 mt-1">
-        <div class="flex-1">
-          <div class="flex justify-between items-center mb-1">
-            <div class="flex items-center gap-2">
-              <span class="font-medium ${isAdminComment ? 'text-yellow-400' : ''}">${cm.user}</span>
-              ${cm.userId ? '<span class="admin-badge text-xs" id="comment-admin-${topic.id}-${cid}">Loading...</span>' : ''}
-            </div>
-            <span class="text-xs text-gray-400">${t}</span>
+    let t = new Date(cm.ts).toLocaleString("vi-VN");
+    let canEditComment = currentUser && (isAdmin || cm.userId === currentUser.uid);
+    return `<div class="flex items-start mb-4">
+      <img src="${avatarUrl(cm.user)}" class="w-8 h-8 rounded-full mr-3 mt-1">
+      <div class="flex-1">
+        <div class="flex justify-between items-center mb-1">
+          <div class="flex items-center gap-2">
+            <span class="font-medium">${cm.user}</span>
+            <span class="admin-badge text-xs hidden" id="comment-admin-${topic.id}-${cid}"></span>
           </div>
-          <p class="bbcode text-gray-300">${parseBBCode(cm.text)}</p>
-          ${isAdmin ? `<button onclick="deleteComment('${topic.id}','${cid}')" class="mt-1 text-xs text-red-400 hover:underline">
-            <i class="fas fa-trash mr-1"></i>Xóa
-          </button>` : ""}
+          <span class="text-xs text-gray-400">${t}</span>
         </div>
-      </div>`;
-    }).join("") : ""}</div>
-      ${currentUser ? `
-        <div class="mt-2 flex">
-          <input id="cm-input-${topic.id}" type="text" placeholder="Viết bình luận..." class="input-field flex-1 p-2 rounded-l-lg">
-          <button onclick="postComment('${topic.id}')" class="btn-primary px-4 rounded-r-lg">
-            <i class="fas fa-paper-plane"></i>
-          </button>
-        </div>` : ""}`;
+        <p class="bbcode text-gray-300">${parseBBCode(cm.text)}</p>
+        ${canEditComment ? `
+          <div class="mt-1 flex gap-2">
+            <button onclick="deleteComment('${topic.id}','${cid}')" class="text-xs text-red-400 hover:underline">
+              <i class="fas fa-trash mr-1"></i>Xóa
+            </button>
+            <button onclick="editCommentPrompt('${topic.id}','${cid}','${cm.text.replace(/'/g, "\\'")}')" class="text-xs text-blue-400 hover:underline">
+              <i class="fas fa-edit mr-1"></i>Sửa
+            </button>
+          </div>` : ""}
+      </div>
+    </div>`;
+  }).join("") : ""}</div>
+    ${currentUser ? `
+      <div class="mt-2 flex">
+        <input id="cm-input-${topic.id}" type="text" placeholder="Viết bình luận..." class="input-field flex-1 p-2 rounded-l-lg">
+        <button onclick="postComment('${topic.id}')" class="btn-primary px-4 rounded-r-lg">
+          <i class="fas fa-paper-plane"></i>
+        </button>
+      </div>` : ""}`;
 }
 
+// Post comment
 function postComment(id) {
-  let inp = document.getElementById("cm-input-" + id); 
-  let text = inp.value.trim(); 
+  let inp = document.getElementById("cm-input-" + id);
+  let text = inp.value.trim();
   if (!text || !currentUser) return;
-  
+
   db.ref("topics/" + id + "/comments").push({
     user: currentUser.displayName || currentUser.email,
     userId: currentUser.uid,
-    text, 
+    text,
     ts: Date.now()
   })
     .then(() => {
-      inp.value = ""; 
+      inp.value = "";
       showNotification("Đăng bình luận thành công!", "success");
     })
     .catch(err => showNotification("Lỗi đăng bình luận: " + err.message, "error"));
 }
 
-// Admin tools
+// Topic and Comment Management
 function deleteTopic(id) {
-  if (!isAdmin) return;
+  if (!currentUser) return;
   if (confirm("Xóa chủ đề?")) {
     db.ref("topics/" + id).remove().then(() => {
       showNotification("Đã xóa chủ đề", "success");
+    }).catch(err => {
+      showNotification("Lỗi xóa chủ đề: " + err.message, "error");
     });
   }
 }
 
 function editTopicPrompt(id, title, content) {
-  if (!isAdmin) return;
-  let nt = prompt("Tiêu đề:", title); 
+  if (!currentUser) return;
+  let nt = prompt("Tiêu đề:", title);
   if (nt === null) return;
-  let nc = prompt("Nội dung:", content); 
+  let nc = prompt("Nội dung:", content);
   if (nc === null) return;
-  
+
   db.ref("topics/" + id).update({title: nt, content: nc}).then(() => {
     showNotification("Đã cập nhật chủ đề", "success");
+  }).catch(err => {
+    showNotification("Lỗi cập nhật chủ đề: " + err.message, "error");
   });
 }
 
@@ -975,25 +984,40 @@ function toggleSticky(id, cur) {
   if (!isAdmin) return;
   db.ref("topics/" + id).update({sticky: !cur}).then(() => {
     showNotification(`Đã ${!cur ? 'ghim' : 'bỏ ghim'} chủ đề`, "success");
+  }).catch(err => {
+    showNotification("Lỗi ghim chủ đề: " + err.message, "error");
   });
 }
 
 function deleteComment(tid, cid) {
-  if (!isAdmin) return;
+  if (!currentUser) return;
   if (confirm("Xóa bình luận?")) {
     db.ref("topics/" + tid + "/comments/" + cid).remove().then(() => {
       showNotification("Đã xóa bình luận", "success");
+    }).catch(err => {
+      showNotification("Lỗi xóa bình luận: " + err.message, "error");
     });
   }
 }
 
+function editCommentPrompt(tid, cid, text) {
+  if (!currentUser) return;
+  let newText = prompt("Chỉnh sửa bình luận:", text);
+  if (newText === null) return;
+
+  db.ref(`topics/${tid}/comments/${cid}`).update({text: newText, ts: Date.now()}).then(() => {
+    showNotification("Đã cập nhật bình luận", "success");
+  }).catch(err => {
+    showNotification("Lỗi cập nhật bình luận: " + err.message, "error");
+  });
+}
+
 // Pagination
 function renderPagination(cur, max) {
-  let pg = document.getElementById("pagination"); 
+  let pg = document.getElementById("pagination");
   pg.innerHTML = "";
   if (max <= 1) return;
-  
-  // Previous button
+
   if (cur > 1) {
     let prevBtn = document.createElement("button");
     prevBtn.innerHTML = "<i class='fas fa-chevron-left'></i>";
@@ -1001,17 +1025,15 @@ function renderPagination(cur, max) {
     prevBtn.onclick = () => applyFilterAndRender(cur - 1);
     pg.appendChild(prevBtn);
   }
-  
-  // Page numbers
+
   for (let i = 1; i <= max; i++) {
     let b = document.createElement("button");
-    b.innerText = i; 
+    b.innerText = i;
     b.className = `pagination-btn w-10 h-10 rounded-lg flex items-center justify-center ${i === cur ? "active" : ""}`;
-    b.onclick = () => applyFilterAndRender(i); 
+    b.onclick = () => applyFilterAndRender(i);
     pg.appendChild(b);
   }
-  
-  // Next button
+
   if (cur < max) {
     let nextBtn = document.createElement("button");
     nextBtn.innerHTML = "<i class='fas fa-chevron-right'></i>";
@@ -1025,7 +1047,7 @@ function renderPagination(cur, max) {
 function showNotification(message, type = "info") {
   const notification = document.createElement("div");
   notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 transform transition-all duration-300 ${
-    type === "success" ? "bg-green-600" : 
+    type === "success" ? "bg-green-600" :
     type === "error" ? "bg-red-600" : "bg-blue-600"
   }`;
   notification.innerHTML = `
@@ -1034,10 +1056,9 @@ function showNotification(message, type = "info") {
       <span>${message}</span>
     </div>
   `;
-  
+
   document.body.appendChild(notification);
-  
-  // Auto remove after 3 seconds
+
   setTimeout(() => {
     notification.style.opacity = "0";
     setTimeout(() => {
@@ -1057,6 +1078,5 @@ function debounce(func, delay) {
   };
 }
 </script>
-
 </body>
 </html>
