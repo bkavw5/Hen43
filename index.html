@@ -244,7 +244,8 @@
           </h2>
           <input class="input-field p-3 w-full mb-3 rounded-lg" id="registerUsername" placeholder="Tên đăng nhập" type="text" />
           <input class="input-field p-3 w-full mb-3 rounded-lg" id="registerPassword" placeholder="Mật khẩu" type="password" />
-          <input class="input-field p-3 w-full mb-4 rounded-lg" id="registerDisplayName" placeholder="Tên hiển thị" type="text" />
+          <input class="input-field p-3 w-full mb-3 rounded-lg" id="registerDisplayName" placeholder="Tên hiển thị" type="text" />
+          <input class="input-field p-3 w-full mb-4 rounded-lg" id="registerEmail" placeholder="Email (cho khôi phục mật khẩu)" type="email" />
           <button class="btn-success px-4 py-3 rounded-lg w-full font-medium mb-3" onclick="registerWithUsername()">
             <i class="fas fa-user-plus mr-2"></i>Đăng ký
           </button>
@@ -452,6 +453,7 @@ let topics = [];
 
 // Auth state observer
 auth.onAuthStateChanged((user) => {
+  console.log('Auth state changed:', user ? `User: ${user.uid}` : 'No user');
   if (user) {
     currentUser = user;
     loadUserProfile(user.uid);
@@ -470,13 +472,13 @@ function loadUserProfile(uid) {
     const profile = snapshot.val();
     if (profile) {
       isAdmin = profile.isAdmin || false;
-      document.getElementById('currentUser').textContent = profile.username || 'User';
+      document.getElementById('currentUser').textContent = profile.displayName || profile.username || 'User';
       document.getElementById('userEmail').textContent = profile.email || '';
-      document.getElementById('updateDisplayName').value = profile.username || '';
+      document.getElementById('updateDisplayName').value = profile.displayName || '';
     }
   }).catch((error) => {
     console.error('Load profile error:', error);
-    showNotification('Lỗi tải hồ sơ', 'error');
+    showNotification('Lỗi tải hồ sơ: ' + error.message, 'error');
   });
 }
 
@@ -523,7 +525,6 @@ function loginWithUsername() {
     return showNotification('Vui lòng nhập tên đăng nhập và mật khẩu', 'error');
   }
 
-  // Find user by username
   db.ref('users').orderByChild('username').equalTo(username).once('value').then((snapshot) => {
     const users = snapshot.val();
     if (!users) {
@@ -533,7 +534,6 @@ function loginWithUsername() {
     const userId = Object.keys(users)[0];
     const userData = users[userId];
 
-    // Sign in with email and password
     auth.signInWithEmailAndPassword(userData.email, password)
       .then(() => {
         showNotification('Đăng nhập thành công!', 'success');
@@ -555,7 +555,7 @@ function loginWithUsername() {
       });
   }).catch((error) => {
     console.error('Username lookup error:', error);
-    showNotification('Lỗi kiểm tra tên đăng nhập', 'error');
+    showNotification('Lỗi kiểm tra tên đăng nhập: ' + error.message, 'error');
   });
 }
 
@@ -564,8 +564,9 @@ function registerWithUsername() {
   const username = document.getElementById('registerUsername').value.trim();
   const password = document.getElementById('registerPassword').value;
   const displayName = document.getElementById('registerDisplayName').value.trim();
+  const email = document.getElementById('registerEmail').value.trim();
 
-  if (!username || !password || !displayName) {
+  if (!username || !password || !displayName || !email) {
     return showNotification('Vui lòng nhập đầy đủ thông tin', 'error');
   }
 
@@ -573,20 +574,14 @@ function registerWithUsername() {
     return showNotification('Mật khẩu phải ít nhất 6 ký tự', 'error');
   }
 
-  // Check if username exists
   db.ref('users').orderByChild('username').equalTo(username).once('value').then((snapshot) => {
     if (snapshot.exists()) {
       return showNotification('Tên đăng nhập đã tồn tại', 'error');
     }
 
-    // Create email from username (e.g., username@hen43forum.com)
-    const email = `${username}@hen43forum.com`;
-
-    // Create user with Firebase Auth
     auth.createUserWithEmailAndPassword(email, password)
       .then((userCredential) => {
         const user = userCredential.user;
-        // Save profile to database
         return db.ref(`users/${user.uid}`).set({
           username: username,
           displayName: displayName,
@@ -601,6 +596,7 @@ function registerWithUsername() {
         document.getElementById('registerUsername').value = '';
         document.getElementById('registerPassword').value = '';
         document.getElementById('registerDisplayName').value = '';
+        document.getElementById('registerEmail').value = '';
       })
       .catch((error) => {
         console.error('Register error:', error);
@@ -620,6 +616,9 @@ function registerWithUsername() {
         }
         showNotification(message, 'error');
       });
+  }).catch((error) => {
+    console.error('Username check error:', error);
+    showNotification('Lỗi kiểm tra tên đăng nhập: ' + error.message, 'error');
   });
 }
 
@@ -646,7 +645,7 @@ function logoutUser() {
     showNotification('Đăng xuất thành công', 'success');
   }).catch((error) => {
     console.error('Logout error:', error);
-    showNotification('Lỗi đăng xuất', 'error');
+    showNotification('Lỗi đăng xuất: ' + error.message, 'error');
   });
 }
 
@@ -675,7 +674,7 @@ function saveProfileUpdate() {
       cancelProfileUpdate();
     }).catch((error) => {
       console.error('Update profile error:', error);
-      showNotification('Lỗi cập nhật hồ sơ', 'error');
+      showNotification('Lỗi cập nhật hồ sơ: ' + error.message, 'error');
     });
   }
 }
@@ -731,6 +730,15 @@ document.getElementById("topicForm").addEventListener("submit", function(e) {
   submitBtn.innerHTML = "<i class='fas fa-spinner fa-spin mr-2'></i>Đang đăng...";
   submitBtn.disabled = true;
 
+  console.log('Posting topic:', {
+    title, content, category,
+    author: currentUser.displayName || currentUser.email,
+    authorId: currentUser.uid,
+    ts: now,
+    sticky: false,
+    comments: {}
+  });
+
   db.ref("topics").push({
     title, content, category,
     author: currentUser.displayName || currentUser.email,
@@ -746,7 +754,7 @@ document.getElementById("topicForm").addEventListener("submit", function(e) {
     showNotification("Đăng chủ đề thành công!", "success");
   })
   .catch(err => {
-    console.error("Lỗi Firebase:", err);
+    console.error("Error posting topic:", err);
     showNotification("Lỗi đăng topic: " + err.message, "error");
   })
   .finally(() => {
@@ -881,7 +889,6 @@ function renderTopics(arr) {
       </div>`;
   }).join("");
 
-  // Check admin badges
   arr.forEach(t => {
     if (t.authorId) {
       db.ref(`users/${t.authorId}`).once('value').then(snapshot => {
@@ -951,7 +958,10 @@ function postComment(id) {
       inp.value = "";
       showNotification("Đăng bình luận thành công!", "success");
     })
-    .catch(err => showNotification("Lỗi đăng bình luận: " + err.message, "error"));
+    .catch(err => {
+      console.error("Error posting comment:", err);
+      showNotification("Lỗi đăng bình luận: " + err.message, "error");
+    });
 }
 
 // Topic and Comment Management
@@ -961,6 +971,7 @@ function deleteTopic(id) {
     db.ref("topics/" + id).remove().then(() => {
       showNotification("Đã xóa chủ đề", "success");
     }).catch(err => {
+      console.error("Error deleting topic:", err);
       showNotification("Lỗi xóa chủ đề: " + err.message, "error");
     });
   }
@@ -976,6 +987,7 @@ function editTopicPrompt(id, title, content) {
   db.ref("topics/" + id).update({title: nt, content: nc}).then(() => {
     showNotification("Đã cập nhật chủ đề", "success");
   }).catch(err => {
+    console.error("Error updating topic:", err);
     showNotification("Lỗi cập nhật chủ đề: " + err.message, "error");
   });
 }
@@ -985,6 +997,7 @@ function toggleSticky(id, cur) {
   db.ref("topics/" + id).update({sticky: !cur}).then(() => {
     showNotification(`Đã ${!cur ? 'ghim' : 'bỏ ghim'} chủ đề`, "success");
   }).catch(err => {
+    console.error("Error toggling sticky:", err);
     showNotification("Lỗi ghim chủ đề: " + err.message, "error");
   });
 }
@@ -995,6 +1008,7 @@ function deleteComment(tid, cid) {
     db.ref("topics/" + tid + "/comments/" + cid).remove().then(() => {
       showNotification("Đã xóa bình luận", "success");
     }).catch(err => {
+      console.error("Error deleting comment:", err);
       showNotification("Lỗi xóa bình luận: " + err.message, "error");
     });
   }
@@ -1008,6 +1022,7 @@ function editCommentPrompt(tid, cid, text) {
   db.ref(`topics/${tid}/comments/${cid}`).update({text: newText, ts: Date.now()}).then(() => {
     showNotification("Đã cập nhật bình luận", "success");
   }).catch(err => {
+    console.error("Error updating comment:", err);
     showNotification("Lỗi cập nhật bình luận: " + err.message, "error");
   });
 }
