@@ -559,7 +559,7 @@ function loginWithUsername() {
   });
 }
 
-// Register with username
+// Register with username - FIXED VERSION
 function registerWithUsername() {
   const username = document.getElementById('registerUsername').value.trim();
   const password = document.getElementById('registerPassword').value;
@@ -574,14 +574,37 @@ function registerWithUsername() {
     return showNotification('Mật khẩu phải ít nhất 6 ký tự', 'error');
   }
 
-  db.ref('users').orderByChild('username').equalTo(username).once('value').then((snapshot) => {
-    if (snapshot.exists()) {
-      return showNotification('Tên đăng nhập đã tồn tại', 'error');
-    }
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return showNotification('Email không hợp lệ', 'error');
+  }
 
-    auth.createUserWithEmailAndPassword(email, password)
-      .then((userCredential) => {
-        const user = userCredential.user;
+  // Validate username format (letters, numbers, underscores, 3-20 characters)
+  const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+  if (!usernameRegex.test(username)) {
+    return showNotification('Tên đăng nhập chỉ được chứa chữ cái, số, dấu gạch dưới, dài 3-20 ký tự', 'error');
+  }
+
+  // Step 1: Create auth user
+  auth.createUserWithEmailAndPassword(email, password)
+    .then((userCredential) => {
+      const user = userCredential.user;
+      console.log('Created auth user:', user.uid);
+
+      // Step 2: Check username uniqueness
+      return db.ref('users').orderByChild('username').equalTo(username).once('value').then((snapshot) => {
+        if (snapshot.exists()) {
+          // Username exists - delete the newly created auth user
+          return user.delete().then(() => {
+            throw new Error('Tên đăng nhập đã tồn tại');
+          }).catch((deleteError) => {
+            console.error('Error deleting user:', deleteError);
+            throw new Error('Tên đăng nhập đã tồn tại và không thể xóa tài khoản tạm thời');
+          });
+        }
+
+        // Step 3: Save user profile
         return db.ref(`users/${user.uid}`).set({
           username: username,
           displayName: displayName,
@@ -589,37 +612,35 @@ function registerWithUsername() {
           isAdmin: false,
           createdAt: Date.now()
         });
-      })
-      .then(() => {
-        showNotification('Đăng ký thành công!', 'success');
-        showLoginForm();
-        document.getElementById('registerUsername').value = '';
-        document.getElementById('registerPassword').value = '';
-        document.getElementById('registerDisplayName').value = '';
-        document.getElementById('registerEmail').value = '';
-      })
-      .catch((error) => {
-        console.error('Register error:', error);
-        let message = 'Lỗi đăng ký';
-        switch (error.code) {
-          case 'auth/email-already-in-use':
-            message = 'Email đã được sử dụng';
-            break;
-          case 'auth/invalid-email':
-            message = 'Email không hợp lệ';
-            break;
-          case 'auth/weak-password':
-            message = 'Mật khẩu quá yếu';
-            break;
-          default:
-            message = error.message;
-        }
-        showNotification(message, 'error');
       });
-  }).catch((error) => {
-    console.error('Username check error:', error);
-    showNotification('Lỗi kiểm tra tên đăng nhập: ' + error.message, 'error');
-  });
+    })
+    .then(() => {
+      showNotification('Đăng ký thành công! Bạn có thể đăng nhập ngay.', 'success');
+      showLoginForm();
+      // Clear form
+      document.getElementById('registerUsername').value = '';
+      document.getElementById('registerPassword').value = '';
+      document.getElementById('registerDisplayName').value = '';
+      document.getElementById('registerEmail').value = '';
+    })
+    .catch((error) => {
+      console.error('Register error:', error);
+      let message = 'Lỗi đăng ký';
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          message = 'Email đã được sử dụng';
+          break;
+        case 'auth/invalid-email':
+          message = 'Email không hợp lệ';
+          break;
+        case 'auth/weak-password':
+          message = 'Mật khẩu quá yếu';
+          break;
+        default:
+          message = error.message;
+      }
+      showNotification(message, 'error');
+    });
 }
 
 function resetPassword() {
